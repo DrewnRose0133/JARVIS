@@ -34,3 +34,9 @@ JARVIS can be:
 - Full Paul Bettany–style J.A.R.V.I.S. (default)
 
 Enjoy your own AI butler.
+
+## 🔊 Audio Notes
+This build uses NAudio for MP3 playback. Install via:
+```
+dotnet add package NAudio
+```

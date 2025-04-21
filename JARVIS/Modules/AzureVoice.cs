@@ -1,57 +1,46 @@
-
-using System;
+using System.IO;
 using System.Net.Http;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
-using System.IO;
+using NAudio.Wave;
 
 namespace JARVIS.Modules
 {
     public static class AzureVoice
     {
-        private static readonly string subscriptionKey = File.ReadAllText("Config/azure_key.txt").Trim();
-        private static readonly string region = File.ReadAllText("Config/azure_region.txt").Trim();
-        private static readonly string endpoint = $"https://{region}.tts.speech.microsoft.com/cognitiveservices/v1";
+        private static readonly string azureApiKey = System.IO.File.ReadAllText("Config/azure_key.txt").Trim();
+        private static readonly string endpoint = "https://eastus.tts.speech.microsoft.com/cognitiveservices/v1";
 
-        public static void Speak(string text)
+        public static async Task Speak(string text)
         {
-            try
-            {
-                var result = SynthesizeSpeechAsync(text).GetAwaiter().GetResult();
-                string tempFile = Path.GetTempFileName() + ".wav";
-                File.WriteAllBytes(tempFile, result);
-                System.Media.SoundPlayer player = new System.Media.SoundPlayer(tempFile);
-                player.PlaySync();
-                File.Delete(tempFile);
-            }
-            catch (Exception ex)
-            {
-                Logger.Log("Azure TTS failed, using fallback: " + ex.Message);
-                VoiceOutput.Speak(text);
-            }
-        }
+            using var client = new HttpClient();
+            client.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", azureApiKey);
+            client.DefaultRequestHeaders.Add("X-Microsoft-OutputFormat", "audio-16khz-32kbitrate-mono-mp3");
+            client.DefaultRequestHeaders.Add("User-Agent", "JARVIS");
 
-        private static async Task<byte[]> SynthesizeSpeechAsync(string text)
-        {
-            using (var client = new HttpClient())
-            {
-                client.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", subscriptionKey);
-                client.DefaultRequestHeaders.Add("User-Agent", "JARVIS-AI");
-
-                var body = $@"
-<speak version='1.0' xml:lang='en-GB'>
-  <voice xml:lang='en-GB' xml:gender='Male' name='en-GB-RyanNeural'>
-    {text}
-  </voice>
+            string body = $@"
+<speak version='1.0' xml:lang='en-US'>
+    <voice name='en-US-GuyNeural'>{text}</voice>
 </speak>";
 
-                using (var content = new StringContent(body, Encoding.UTF8, "application/ssml+xml"))
-                {
-                    content.Headers.Add("X-Microsoft-OutputFormat", "riff-16khz-16bit-mono-pcm");
-                    var response = await client.PostAsync(endpoint, content);
-                    response.EnsureSuccessStatusCode();
-                    return await response.Content.ReadAsByteArrayAsync();
-                }
+            var content = new StringContent(body, Encoding.UTF8, "application/ssml+xml");
+            var response = await client.PostAsync(endpoint, content);
+            var audioBytes = await response.Content.ReadAsByteArrayAsync();
+
+            PlayAudioStream(audioBytes);
+        }
+
+        private static void PlayAudioStream(byte[] audioBytes)
+        {
+            using var ms = new MemoryStream(audioBytes);
+            using var rdr = new Mp3FileReader(ms);
+            using var waveOut = new WaveOutEvent();
+            waveOut.Init(rdr);
+            waveOut.Play();
+            while (waveOut.PlaybackState == PlaybackState.Playing)
+            {
+                System.Threading.Thread.Sleep(100);
             }
         }
     }
