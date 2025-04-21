@@ -27,8 +27,7 @@ namespace JARVIS.Modules
                     response.EnsureSuccessStatusCode();
 
                     var json = await response.Content.ReadAsStringAsync();
-                    Logger.Log("Connected devices:
-" + json.Substring(0, Math.Min(json.Length, 500)) + "...");
+                    Logger.Log("Connected devices:" + json.Substring(0, Math.Min(json.Length, 500)) + "...");
                 }
             }
             catch (Exception ex)

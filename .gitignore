@@ -1,0 +1,31 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.vs/
+.vscode/
+launchSettings.json
+
+# Logs
+*.log
+*.tlog
+*.log.*
+
+# Build
+*.dll
+*.exe
+*.app
+*.cache
+*.pdb
+*.class
+*.apk
+*.zip
+
+# Config
+Config/*.txt
+Config/*.json
+!Config/openai_key.txt
+!Config/unifi_config.json
