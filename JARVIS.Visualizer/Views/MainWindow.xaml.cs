@@ -5,9 +5,13 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
 using System.Windows;
+using System.Windows.Media.Animation;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using WpfAnimatedGif;
+using System.Diagnostics;
+
 
 namespace JARVIS.Visualizer.Views
 {
@@ -15,6 +19,7 @@ namespace JARVIS.Visualizer.Views
     {
         private DispatcherTimer _clockTimer;
         private ClientWebSocket _socket;
+        private readonly Stopwatch uptime = Stopwatch.StartNew();
 
         public MainWindow()
         {
@@ -22,6 +27,9 @@ namespace JARVIS.Visualizer.Views
             InitClock();
             InitWebSocket();
             LoadLog();
+
+
+            StartDiagnosticsTimer();
 
             // Load the animated GIF
             var gifUri = new Uri("pack://application:,,,/Assets/JARVIS.gif", UriKind.Absolute);
@@ -80,6 +88,40 @@ namespace JARVIS.Visualizer.Views
                     LogList.Items.Insert(0, line);
                 }
             }
+        }
+
+        private void StartDiagnosticsTimer()
+        {
+            var timer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(1)
+            };
+
+            timer.Tick += (s, e) =>
+            {
+                // Uptime
+                TimeSpan up = uptime.Elapsed;
+                UptimeText.Text = $"Uptime: {up.Hours:D2}:{up.Minutes:D2}:{up.Seconds:D2}";
+
+                // CPU Usage
+                try
+                {
+                    var cpu = new PerformanceCounter("Processor", "% Processor Time", "_Total");
+                    cpu.NextValue(); // Call once to initialize
+                    System.Threading.Thread.Sleep(100); // Wait for real reading
+                    CpuUsageText.Text = $"CPU Usage: {cpu.NextValue():0.0}%";
+                }
+                catch
+                {
+                    CpuUsageText.Text = $"CPU Usage: Unavailable";
+                }
+
+                // Memory Usage
+                var usedMemory = Process.GetCurrentProcess().PrivateMemorySize64 / (1024 * 1024);
+                MemoryUsageText.Text = $"Memory: {usedMemory} MB";
+            };
+
+            timer.Start();
         }
 
         private void LightOn_Click(object sender, RoutedEventArgs e) { }

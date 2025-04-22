@@ -4,29 +4,41 @@
         xmlns:av="http://schemas.microsoft.com/expression/blend/2008" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="av" x:Class="JARVIS.Visualizer.Views.MainWindow"
         Title="JARVIS Visualizer" Height="720" Width="1280" WindowState="Maximized" Background="Black" Foreground="LightBlue">
     <Grid>
-        <TextBlock x:Name="ClockText" FontSize="48" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="258,10,0,0" Width="705" Background="White" Foreground="#FF01080A"/>
+        <TextBlock x:Name="ClockText" FontSize="48" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="258,10,0,0" Width="705" Background="White" Foreground="#FF01080A" av:IsLocked="True"/>
 
 
         <Image x:Name="GifPlayer"
        Width="1586" Height="1087"
        HorizontalAlignment="Left"
-       VerticalAlignment="Top" Margin="150,62,0,0" av:IsHidden="True"/>
+       VerticalAlignment="Top" Margin="150,62,0,0" av:IsLocked="True"/>
 
-        <StackPanel Orientation="Vertical" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,50,0">
+
+        <StackPanel Orientation="Vertical" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,50,0" av:IsLocked="True">
             <TextBlock Text="Smart Home" FontSize="24" Margin="0,0,0,10"/>
             <Button Content="Light On" Click="LightOn_Click" Margin="0,5"/>
             <Button Content="Light Off" Click="LightOff_Click" Margin="0,5"/>
             <Button Content="Set AC to 72" Click="SetAC_Click" Margin="0,5"/>
         </StackPanel>
 
-        <StackPanel Orientation="Vertical" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="20">
+        <StackPanel Orientation="Vertical" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="20" av:IsLocked="True">
             <TextBlock Text="Recent Alerts" FontSize="20"/>
             <ListBox x:Name="AlertsList" Height="120" Width="300"/>
         </StackPanel>
 
-        <StackPanel Orientation="Vertical" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="20">
+        <StackPanel Orientation="Vertical" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="20" av:IsLocked="True">
             <TextBlock Text="System Log" FontSize="20"/>
             <ListBox x:Name="LogList" Height="120" Width="300"/>
+        </StackPanel>
+        <StackPanel x:Name="DiagnosticsPanel"
+            Orientation="Vertical"
+            Width="585"
+            HorizontalAlignment="Right"
+            VerticalAlignment="Bottom"
+            Margin="0,0,345,49" Height="98" Background="#22D2D2D2">
+            <TextBlock Text="Diagnostics" FontSize="16" FontWeight="Bold" Foreground="White" Margin="0 0 0 10"/>
+            <TextBlock x:Name="CpuUsageText" Foreground="LightGreen" FontSize="14"/>
+            <TextBlock x:Name="MemoryUsageText" Foreground="LightBlue" FontSize="14"/>
+            <TextBlock x:Name="UptimeText" Foreground="LightGray" FontSize="14"/>
         </StackPanel>
     </Grid>
 </Window>
