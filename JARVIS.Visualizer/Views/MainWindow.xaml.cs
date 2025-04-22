@@ -11,6 +11,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using WpfAnimatedGif;
 using System.Diagnostics;
+using System.Threading.Tasks;
 
 
 namespace JARVIS.Visualizer.Views
@@ -20,6 +21,7 @@ namespace JARVIS.Visualizer.Views
         private DispatcherTimer _clockTimer;
         private ClientWebSocket _socket;
         private readonly Stopwatch uptime = Stopwatch.StartNew();
+        private ClientWebSocket _client;
 
         public MainWindow()
         {
@@ -123,6 +125,36 @@ namespace JARVIS.Visualizer.Views
 
             timer.Start();
         }
+
+
+        private async void ConnectToWebSocket()
+        {
+            try
+            {
+                _client = new ClientWebSocket();
+                await _client.ConnectAsync(new Uri("ws://localhost:5000/ws"), CancellationToken.None);
+
+                await Task.Run(async () =>
+                {
+                    var buffer = new byte[1024];
+                    while (_client.State == WebSocketState.Open)
+                    {
+                        var result = await _client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+                        string message = Encoding.UTF8.GetString(buffer, 0, result.Count);
+
+                        Dispatcher.Invoke(() =>
+                        {
+                            MessageBox.Show("From backend: " + message);
+                        });
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("WebSocket error: " + ex.Message);
+            }
+        }
+
 
         private void LightOn_Click(object sender, RoutedEventArgs e) { }
         private void LightOff_Click(object sender, RoutedEventArgs e) { }

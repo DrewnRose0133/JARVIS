@@ -1,17 +1,21 @@
-
-using System;
-using JARVIS.Modules;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Hosting;
 
 namespace JARVIS
 {
-    class Program
+    public class Program
     {
-        static void Main(string[] args)
+        public static void Main(string[] args)
         {
-            Console.WriteLine("JARVIS system booting up...");
-            Logger.Log("System startup complete.");
-            AzureVoice.Speak("System startup complete.");
-            WakeWordListener.Listen();
+            CreateHostBuilder(args).Build().Run();
         }
+
+        public static IHostBuilder CreateHostBuilder(string[] args) =>
+            Host.CreateDefaultBuilder(args)
+                .ConfigureWebHostDefaults(webBuilder =>
+                {
+                    webBuilder.UseStartup<JARVIS.Startup>();
+                    webBuilder.UseUrls("http://localhost:5000");
+                });
     }
 }
