@@ -19,6 +19,9 @@ namespace JARVIS.Visualizer.Views
         public MainWindow()
         {
             InitializeComponent();
+            InitClock();
+            InitWebSocket();
+            LoadLog();
 
             // Load the animated GIF
             var gifUri = new Uri("pack://application:,,,/Assets/JARVIS.gif", UriKind.Absolute);
