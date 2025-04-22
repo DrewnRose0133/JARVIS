@@ -4,12 +4,10 @@
         Title="JARVIS Visualizer" Height="720" Width="1280" WindowState="Maximized" Background="Black" Foreground="LightBlue">
     <Grid>
         <TextBlock Name="ClockText" FontSize="48" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,30,0,0"/>
-        <Image Name="StatusImage"
-       Source="Assets/JARVIS.gif"
-       Width="994" Height="522"
+        <Image x:Name="GifPlayer"
+       Width="1586" Height="1087"
        HorizontalAlignment="Left"
-       VerticalAlignment="Top"
-       Margin="140,0,0,0"/>
+       VerticalAlignment="Top" Margin="150,62,0,0"/>
 
         <StackPanel Orientation="Vertical" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,50,0">
             <TextBlock Text="Smart Home" FontSize="24" Margin="0,0,0,10"/>

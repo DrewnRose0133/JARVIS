@@ -1,6 +1,4 @@
-
 using System;
-using System.Threading.Tasks;
 
 namespace JARVIS.Modules
 {
@@ -10,66 +8,31 @@ namespace JARVIS.Modules
         {
             Console.Write("Command: ");
             string command = Console.ReadLine()?.ToLower();
-            Logger.Log($"Received command: {command}");
+            HandleCommand(command);
+        }
+
+        public static void HandleCommand(string command)
+        {
+            Logger.Log($"Command: {command}");
 
             switch (command)
             {
                 case "hello":
-                    PersonalityEngine.Speak("Hello! How can I assist you?");
+                    PersonalityEngine.Speak("Hello. How may I assist you?");
                     break;
-                case "open garage":
-                    if (ApprovedUsers.IsApproved("Andrew")) GarageController.OpenGarage();
-                    else PersonalityEngine.Speak("Access denied.");
-                    break;
-                case "close garage":
-                    if (ApprovedUsers.IsApproved("Andrew")) GarageController.CloseGarage();
-                    else PersonalityEngine.Speak("Access denied.");
-                    break;
-                case "toggle garage":
-                    if (ApprovedUsers.IsApproved("Andrew")) GarageController.ToggleGarage();
-                    else PersonalityEngine.Speak("Access denied.");
-                    break;
-                case "personality sarcastic":
-                    PersonalityEngine.SetPersonality("Sarcastic");
-                    break;
-                case "personality friendly":
-                    PersonalityEngine.SetPersonality("Friendly");
-                    break;
-                case "personality professional":
-                    PersonalityEngine.SetPersonality("Professional");
-                    break;
-                default:
-                    PersonalityEngine.Speak("I'm sorry, I didn't understand that.");
-                    break;
-            }
-        }
-        public static void HandleVoiceCommand(string input)
-        {
-            Logger.Log($"Handling voice input: {input}");
-
-            // Reuse your existing logic (can reuse or route)
-            switch (input)
-            {
-                case "hello":
-                    PersonalityEngine.Speak("Hello, how may I assist you?");
-                    break;
-
                 case "open garage":
                     if (ApprovedUsers.IsApproved("Andrew"))
                         GarageController.OpenGarage();
                     else
                         PersonalityEngine.Speak("Access denied.");
                     break;
-
                 case "start routine":
                     AutomationEngine.RunAutomationRules();
                     break;
-
                 case "shut down":
                     PersonalityEngine.Speak("Shutting down.");
                     Environment.Exit(0);
                     break;
-
                 default:
                     PersonalityEngine.Speak("I'm sorry, I didn't understand that.");
                     break;

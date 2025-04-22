@@ -5,7 +5,9 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
 using System.Windows;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using WpfAnimatedGif;
 
 namespace JARVIS.Visualizer.Views
 {
@@ -17,9 +19,16 @@ namespace JARVIS.Visualizer.Views
         public MainWindow()
         {
             InitializeComponent();
-            InitClock();
-            InitWebSocket();
-            LoadLog();
+
+            // Load the animated GIF
+            var gifUri = new Uri("pack://application:,,,/Assets/JARVIS.gif", UriKind.Absolute);
+            var gifImage = new BitmapImage();
+            gifImage.BeginInit();
+            gifImage.UriSource = gifUri;
+            gifImage.CacheOption = BitmapCacheOption.OnLoad;
+            gifImage.EndInit();
+
+            ImageBehavior.SetAnimatedSource(GifPlayer, gifImage);
         }
 
         private void InitClock()

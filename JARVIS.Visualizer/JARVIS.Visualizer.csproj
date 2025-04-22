@@ -1,4 +1,4 @@
-
+﻿
 <Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -7,6 +7,14 @@
     <RootNamespace>JARVIS.Visualizer</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <Folder Include="Assets\" />
+    <None Remove="Assets\JARVIS.gif" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="WpfAnimatedGif" Version="2.0.2" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Assets\JARVIS.gif">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Resource>
   </ItemGroup>
 </Project>

@@ -1,4 +1,4 @@
-
+using System;
 using System.Speech.Recognition;
 
 namespace JARVIS.Modules
@@ -17,7 +17,7 @@ namespace JARVIS.Modules
             {
                 string input = e.Result.Text.ToLower();
                 Logger.Log($"Voice recognized: {input}");
-                CommandRouter.HandleVoiceCommand(input);
+                CommandRouter.HandleCommand(input);
             };
 
             recognizer.RecognizeAsync(RecognizeMode.Multiple);
@@ -29,5 +29,4 @@ namespace JARVIS.Modules
             recognizer?.RecognizeAsyncStop();
         }
     }
-
 }
