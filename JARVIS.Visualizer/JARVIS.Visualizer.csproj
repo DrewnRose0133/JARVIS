@@ -6,4 +6,7 @@
     <UseWPF>true</UseWPF>
     <RootNamespace>JARVIS.Visualizer</RootNamespace>
   </PropertyGroup>
+  <ItemGroup>
+    <Folder Include="Assets\" />
+  </ItemGroup>
 </Project>
