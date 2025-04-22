@@ -1,21 +1,33 @@
 
-using System;
 using System.Speech.Recognition;
 
 namespace JARVIS.Modules
 {
     public static class VoiceInput
     {
-        public static string Listen()
+        private static SpeechRecognitionEngine recognizer;
+
+        public static void StartListening()
         {
-            using (SpeechRecognitionEngine recognizer = new SpeechRecognitionEngine())
+            recognizer = new SpeechRecognitionEngine();
+            recognizer.SetInputToDefaultAudioDevice();
+            recognizer.LoadGrammar(new DictationGrammar());
+
+            recognizer.SpeechRecognized += (s, e) =>
             {
-                recognizer.LoadGrammar(new DictationGrammar());
-                recognizer.SetInputToDefaultAudioDevice();
-                Console.WriteLine("Listening for command...");
-                RecognitionResult result = recognizer.Recognize();
-                return result?.Text;
-            }
+                string input = e.Result.Text.ToLower();
+                Logger.Log($"Voice recognized: {input}");
+                CommandRouter.HandleVoiceCommand(input);
+            };
+
+            recognizer.RecognizeAsync(RecognizeMode.Multiple);
+            Logger.Log("Voice input listening started.");
+        }
+
+        public static void StopListening()
+        {
+            recognizer?.RecognizeAsyncStop();
         }
     }
+
 }

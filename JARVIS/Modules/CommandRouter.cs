@@ -43,5 +43,37 @@ namespace JARVIS.Modules
                     break;
             }
         }
+        public static void HandleVoiceCommand(string input)
+        {
+            Logger.Log($"Handling voice input: {input}");
+
+            // Reuse your existing logic (can reuse or route)
+            switch (input)
+            {
+                case "hello":
+                    PersonalityEngine.Speak("Hello, how may I assist you?");
+                    break;
+
+                case "open garage":
+                    if (ApprovedUsers.IsApproved("Andrew"))
+                        GarageController.OpenGarage();
+                    else
+                        PersonalityEngine.Speak("Access denied.");
+                    break;
+
+                case "start routine":
+                    AutomationEngine.RunAutomationRules();
+                    break;
+
+                case "shut down":
+                    PersonalityEngine.Speak("Shutting down.");
+                    Environment.Exit(0);
+                    break;
+
+                default:
+                    PersonalityEngine.Speak("I'm sorry, I didn't understand that.");
+                    break;
+            }
+        }
     }
 }

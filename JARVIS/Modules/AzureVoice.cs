@@ -14,6 +14,12 @@ namespace JARVIS.Modules
 
         public static async Task Speak(string text)
         {
+            var audioBytes = await GetSpeechBytes(text);
+            PlayAudioStream(audioBytes);
+        }
+
+        public static async Task<byte[]> GetSpeechBytes(string text)
+        {
             using var client = new HttpClient();
             client.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", azureApiKey);
             client.DefaultRequestHeaders.Add("X-Microsoft-OutputFormat", "audio-16khz-32kbitrate-mono-mp3");
@@ -26,9 +32,7 @@ namespace JARVIS.Modules
 
             var content = new StringContent(body, Encoding.UTF8, "application/ssml+xml");
             var response = await client.PostAsync(endpoint, content);
-            var audioBytes = await response.Content.ReadAsByteArrayAsync();
-
-            PlayAudioStream(audioBytes);
+            return await response.Content.ReadAsByteArrayAsync();
         }
 
         private static void PlayAudioStream(byte[] audioBytes)
