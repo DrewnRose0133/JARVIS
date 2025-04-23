@@ -1,54 +1,47 @@
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using System;
-using System.Speech.Synthesis;
-using System.Threading;
+using System.IO;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using JARVIS.Modules;
 
 namespace JARVIS.Service
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
-            //getVoices();
-
-            Host.CreateDefaultBuilder(args)
-                .UseWindowsService()
-                .ConfigureServices((hostContext, services) =>
+            var host = Host.CreateDefaultBuilder(args)
+                .ConfigureAppConfiguration((hostingContext, config) =>
                 {
-                    services.AddHostedService<JARVISWorker>();
+                    config.SetBasePath(Directory.GetCurrentDirectory());
+                    config.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+                    config.AddEnvironmentVariables();
                 })
-                .Build()
-                .Run();
-        }
-
-        public static void getVoices()
-        {
-            var synth = new SpeechSynthesizer();
-            Console.WriteLine("Installed voices:");
-            foreach (var v in synth.GetInstalledVoices())
-                Console.WriteLine($" • {v.VoiceInfo.Name}");
-            Console.WriteLine("Press any key to exit.");
-            Console.ReadKey();
-        }
-    }
-
-
-
-    public class JARVISWorker : BackgroundService
-    {
-        protected override Task ExecuteAsync(CancellationToken stoppingToken)
-        {
-            return Task.Run(() =>
-            {
-                Modules.Logger.Log("JARVIS service started.");
-                Modules.JARVIS.Startup(); // Starts your main backend logic
-                while (!stoppingToken.IsCancellationRequested)
+                .ConfigureServices((context, services) =>
                 {
-                    Thread.Sleep(10000); // Keeps the worker alive
-                }
-            });
+                    // bind configuration sections to options
+                    services.Configure<OpenAIOptions>(context.Configuration.GetSection("OpenAI"));
+                    services.AddHostedService<JarvisHostedService>();
+
+                    // services.Configure<AzureSpeechOptions>(context.Configuration.GetSection("AzureSpeech"));
+
+
+                    // hosted service to orchestrate startup/shutdown
+                    services.AddHostedService<JarvisHostedService>();
+                })
+                .ConfigureLogging((hostingContext, logging) =>
+                {
+                    logging.ClearProviders();
+                    logging.AddConsole();
+                    logging.AddDebug();
+                })
+                .UseWindowsService()
+                .Build();
+
+            await host.RunAsync();
         }
     }
 }
