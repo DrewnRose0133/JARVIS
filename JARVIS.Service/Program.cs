@@ -11,7 +11,7 @@ namespace JARVIS.Service
     {
         public static void Main(string[] args)
         {
-            getVoices();
+            //getVoices();
 
             Host.CreateDefaultBuilder(args)
                 .UseWindowsService()

@@ -9,6 +9,7 @@ namespace JARVIS.Modules
             Scheduler.Start();
             AutomationEngine.RunAutomationRules();
             Diagnostics.RunChecks();
+            WebSocketServer.Start();
         }
     }
 }
