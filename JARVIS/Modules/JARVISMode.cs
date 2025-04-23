@@ -37,12 +37,12 @@ namespace JARVIS.Modules
         {
             if (!phrases.ContainsKey(intent))
             {
-                VoiceOutput.Speak("Command acknowledged.");
+                VoiceOutput.SpeakAsync("Command acknowledged.");
                 return;
             }
 
             int index = Math.Min(phrases[intent].Length - 1, sarcasmLevel / 4);
-            VoiceOutput.Speak(phrases[intent][index]);
+            VoiceOutput.SpeakAsync(phrases[intent][index]);
         }
     }
 }

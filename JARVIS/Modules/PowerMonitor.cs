@@ -15,7 +15,7 @@ namespace JARVIS.Modules
         {
             if (IsApplianceDone("washer"))
             {
-                VoiceOutput.Speak("Laundry cycle is complete.");
+                VoiceOutput.SpeakAsync("Laundry cycle is complete.");
             }
         }
     }

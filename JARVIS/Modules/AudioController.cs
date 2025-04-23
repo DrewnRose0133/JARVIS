@@ -8,7 +8,7 @@ namespace JARVIS.Modules
         public static void PlayAudio(string room, string track)
         {
             Logger.Log($"Playing '{track}' in {room}...");
-            VoiceOutput.Speak($"Now playing {track} in the {room}");
+            VoiceOutput.SpeakAsync($"Now playing {track} in the {room}");
         }
     }
 }

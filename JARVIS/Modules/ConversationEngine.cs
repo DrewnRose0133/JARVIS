@@ -13,7 +13,7 @@ namespace JARVIS.Modules
         {
             Timer timer = new Timer(minutes * 60 * 1000);
             timer.Elapsed += (s, e) => {
-                VoiceOutput.Speak($"Reminder: {task}");
+                VoiceOutput.SpeakAsync($"Reminder: {task}");
                 timer.Stop();
             };
             timer.Start();

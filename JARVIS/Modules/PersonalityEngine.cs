@@ -16,13 +16,13 @@ namespace JARVIS.Modules
                     JARVISMode.Speak(message);
                     break;
                 case Personality.Sarcastic:
-                    VoiceOutput.Speak("Oh, really? " + message);
+                    VoiceOutput.SpeakAsync("Oh, really? " + message);
                     break;
                 case Personality.Professional:
-                    VoiceOutput.Speak("System response: " + message);
+                    VoiceOutput.SpeakAsync("System response: " + message);
                     break;
                 default:
-                    VoiceOutput.Speak(message);
+                    VoiceOutput.SpeakAsync(message);
                     break;
             }
         }
@@ -33,12 +33,12 @@ namespace JARVIS.Modules
             {
                 Current = newMode;
                 Logger.Log($"Personality changed to {Current}");
-                VoiceOutput.Speak($"Personality set to {Current}");
+                VoiceOutput.SpeakAsync($"Personality set to {Current}");
             }
             else
             {
                 Logger.Log($"Invalid personality: {mode}");
-                VoiceOutput.Speak("That personality isn't available.");
+                VoiceOutput.SpeakAsync("That personality isn't available.");
             }
         }
     }
