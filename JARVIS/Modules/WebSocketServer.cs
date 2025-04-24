@@ -1,52 +1,85 @@
-
-using System;
+﻿using System;
 using System.Net;
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace JARVIS.Modules
 {
-    public static class WebSocketServer
+    public class WebSocketServer
     {
-        public static async void Start()
-        {
-            HttpListener listener = new HttpListener();
-            listener.Prefixes.Add("http://localhost:5005/ws/");
-            listener.Start();
-            Logger.Log("WebSocket server started on port 5005.");
+        private readonly HttpListener _listener;
+        private readonly ILogger<WebSocketServer> _logger;
+        private CancellationTokenSource _cts;
 
-            while (true)
+        public WebSocketServer(ILogger<WebSocketServer> logger)
+        {
+            _logger = logger;
+            _listener = new HttpListener();
+            _listener.Prefixes.Add("http://localhost:5005/ws/");
+        }
+
+        public void Start()
+        {
+            _listener.Start();
+            _logger.LogInformation("WebSocket server listening on ws://localhost:5005/ws/");
+            _cts = new CancellationTokenSource();
+            _ = RunAsync(_cts.Token);
+        }
+
+        private async Task RunAsync(CancellationToken token)
+        {
+            while (!token.IsCancellationRequested)
             {
-                HttpListenerContext context = await listener.GetContextAsync();
+                HttpListenerContext context;
+                try
+                {
+                    context = await _listener.GetContextAsync();
+                }
+                catch (HttpListenerException)
+                {
+                    break; // listener was stopped
+                }
+
                 if (context.Request.IsWebSocketRequest)
                 {
                     var wsContext = await context.AcceptWebSocketAsync(null);
-                    _ = EchoLoop(wsContext.WebSocket);
+                    _ = HandleConnection(wsContext.WebSocket);
+                }
+                else
+                {
+                    context.Response.StatusCode = 400;
+                    context.Response.Close();
                 }
             }
         }
 
-        private static async Task EchoLoop(WebSocket socket)
+        private async Task HandleConnection(WebSocket socket)
         {
-            byte[] buffer = new byte[1024];
+            var buffer = new byte[1024];
             while (socket.State == WebSocketState.Open)
             {
                 var result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
                 if (result.MessageType == WebSocketMessageType.Close)
+                {
                     await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
+                }
                 else
                 {
-                    string msg = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                    Logger.Log("WebSocket Received: " + msg);
+                    var msg = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                    _logger.LogInformation("WebSocket ► {Message}", msg);
+                    // TODO: broadcast to other clients if desired
                 }
             }
         }
 
-        public static async Task SendMessage(string message)
+        public void Stop()
         {
-            // To implement: manage connected clients and broadcast messages to the visualizer
+            _cts?.Cancel();
+            _listener.Stop();
+            _logger.LogInformation("WebSocket server stopped.");
         }
     }
 }

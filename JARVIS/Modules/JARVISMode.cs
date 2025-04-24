@@ -1,48 +1,47 @@
-
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace JARVIS.Modules
 {
+    /// <summary>
+    /// Handles Jarvis-specific speech patterns and responses.
+    /// </summary>
     public static class JARVISMode
     {
-        private static int sarcasmLevel = 5;
+        private static int sarcasmLevel = 0;
 
-        private static Dictionary<string, string[]> phrases = new Dictionary<string, string[]>
+        // Populate with your actual intents and phrases
+        private static readonly Dictionary<string, string[]> phrases = new Dictionary<string, string[]>
         {
-            ["garage_open"] = new[] {
-                "The garage is now open, sir.",
-                "Garage access granted. Try not to drive through the wall.",
-                "Once again, the garage is at your service. I'm thrilled."
-            },
-            ["lights_on"] = new[] {
-                "Illumination achieved.",
-                "I've turned on the lights. Revolutionary, really.",
-                "Lights on. Try not to waste electricity."
-            },
-            ["ac_set"] = new[] {
-                "Temperature adjusted.",
-                "Climate controls set. You’re welcome.",
-                "Air conditioning adjusted. Perhaps a blanket too?"
-            }
+            { "greeting", new[] { "Hello, sir.", "Greetings, sir." } },
+            { "farewell", new[] { "Goodbye.", "Until next time." } },
+            // ... other intents and their phrase arrays ...
         };
 
-        public static void SetSarcasm(int level)
-        {
-            sarcasmLevel = Math.Clamp(level, 0, 10);
-            Logger.Log($"Sarcasm level set to {sarcasmLevel}");
-        }
-
-        public static void Speak(string intent)
+        /// <summary>
+        /// Speaks a phrase corresponding to the given intent, using the current sarcasm level.
+        /// </summary>
+        /// <param name="intent">Key for the phrase set to use.</param>
+        public static async Task Speak(string intent)
         {
             if (!phrases.ContainsKey(intent))
             {
-                VoiceOutput.SpeakAsync("Command acknowledged.");
+                await VoiceOutput.SpeakAsync("Command acknowledged.");
                 return;
             }
 
-            int index = Math.Min(phrases[intent].Length - 1, sarcasmLevel / 4);
-            VoiceOutput.SpeakAsync(phrases[intent][index]);
+            int maxIndex = phrases[intent].Length - 1;
+            int index = Math.Min(maxIndex, sarcasmLevel / 4);
+            await VoiceOutput.SpeakAsync(phrases[intent][index]);
+        }
+
+        /// <summary>
+        /// Adjusts the sarcasm level (0 = none, increasing levels introduce more sarcastic tiers).
+        /// </summary>
+        public static void SetSarcasmLevel(int level)
+        {
+            sarcasmLevel = Math.Max(0, level);
         }
     }
 }

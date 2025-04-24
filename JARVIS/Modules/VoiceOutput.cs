@@ -2,6 +2,7 @@ using System.Net.NetworkInformation;
 using System.Security;
 using System.Speech.Synthesis;
 using System;
+using System.Threading.Tasks;
 
 namespace JARVIS.Modules
 {
@@ -17,18 +18,20 @@ namespace JARVIS.Modules
             Synth.Volume = 100;
         }
 
-        public static void SpeakAsync(string text)
+        public static Task SpeakAsync(string text)
         {
+            // wrap your text in SSML and escape it
             string ssml = $@"
-            <speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-GB'>
-              <voice name='Microsoft David Desktop'>
-                <prosody rate='-10%' pitch='-4st'>
-                  {System.Security.SecurityElement.Escape(text)}
-                </prosody>
-              </voice>
-            </speak>";
-
-            Synth.SpeakSsmlAsync(ssml);
+             <speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-GB'>
+               <voice name='{Synth.Voice.Name}'>
+                 <prosody rate='-10%' pitch='-6st'>
+                   {System.Security.SecurityElement.Escape(text)}
+                 </prosody>
+               </voice>
+             </speak>";
+            
+                 // SpeakSsml is synchronous, so run it on a thread-pool thread
+                 return Task.Run(() => Synth.SpeakSsml(ssml));
         }
     }
 }

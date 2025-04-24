@@ -1,14 +1,21 @@
-
-using System;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace JARVIS.Modules
 {
-    public static class AudioController
+    public class AudioController
     {
-        public static void PlayAudio(string room, string track)
+        private readonly ILogger<AudioController> _logger;
+
+        public AudioController(ILogger<AudioController> logger)
         {
-            Logger.Log($"Playing '{track}' in {room}...");
-            VoiceOutput.SpeakAsync($"Now playing {track} in the {room}");
+            _logger = logger;
+        }
+
+        public async Task PlayAudio(string room, string track)
+        {
+            _logger.LogInformation("Playing '{Track}' in {Room}", track, room);
+            await VoiceOutput.SpeakAsync($"Now playing {track} in the {room}");
         }
     }
 }
