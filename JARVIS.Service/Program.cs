@@ -7,6 +7,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using JARVIS.Modules;
+using JARVIS.Modules.Devices;
+using JARVIS.Modules.Devices.Interfaces;
 
 namespace JARVIS.Service
 {
@@ -39,6 +41,9 @@ namespace JARVIS.Service
                     services.AddSingleton<JARVISService>();
                     services.AddSingleton<VoiceInput>();
                     services.AddSingleton<WakeWordListener>();
+                    services.AddSingleton<ILightsService, MqttLightsService>();
+                    services.AddSingleton<ICameraService, RingCameraService>();
+                    services.AddSingleton<IThermostatService, MqttThermostatService>();
 
 
                     // Register hosted service for startup/shutdown orchestration
