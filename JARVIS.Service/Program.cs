@@ -5,113 +5,96 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using JARVIS.Modules;
-using JARVIS.Modules.Devices.Interfaces;
-using JARVIS.Modules.Devices;
 using MQTTnet;
-using Microsoft.AspNetCore.Builder;
+using KoenZomers.Ring.Api;
+using JARVIS.Modules;
+using JARVIS.Modules.Devices;
+using JARVIS.Modules.Devices.Interfaces;
+using JARVIS.Service;
 
-var builder = WebApplication.CreateBuilder(args);
-
-builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
-
-namespace JARVIS.Service
-{
-
-    public class Program
+var host = Host.CreateDefaultBuilder(args)
+    .ConfigureAppConfiguration((context, config) =>
     {
+        config.SetBasePath(Directory.GetCurrentDirectory());
+        config.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+        config.AddEnvironmentVariables();
+    })
+    .ConfigureServices((context, services) =>
+    {
+        var configuration = context.Configuration;
 
-        public static async Task Main(string[] args)
+        // MQTT client
+        services.AddSingleton<IMqttClient>(sp =>
         {
-
-            var ringEmail = builder.Configuration["Ring:Email"];
-            var ringPassword = builder.Configuration["Ring:Password"];
-
-            var host = Host.CreateDefaultBuilder(args)
-                .ConfigureAppConfiguration(cfg =>
-                {
-                    cfg.SetBasePath(Directory.GetCurrentDirectory())
-                       .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-                       .AddEnvironmentVariables();
-                })
-                .ConfigureServices((context, services) =>
-                {
-                    // configuration binding
-                    services.Configure<OpenAIOptions>(context.Configuration.GetSection("OpenAI"));
-                   // Configuration for Azure Speech to be added later to save on cost
-                    //services.Configure<AzureSpeechOptions>(context.Configuration.GetSection("AzureSpeech"));
-                   // services.Configure<SmartHomeOptions>(context.Configuration.GetSection("SmartHome"));
-
-                    // register core services (instance-based modules)
-
-
-                    // OpenAI Client
-                    services.AddHttpClient<OpenAIClient>();
-                   // services.AddSingleton<VoiceOutput>();
-
-                    // Coversation Engine
-                    services.AddSingleton<ConversationEngine>();
-
-                    // Personality Engine
-                    services.AddSingleton<PersonalityEngine>();
-
-                    //Audio Controller
-                    services.AddSingleton<AudioController>();
-
-                    // Web Socket Service
-                    services.AddSingleton<WebSocketServer>();
-
-                    // Command Router
-                    services.AddSingleton<CommandRouter>();
-
-                    // Voice Input
-                    services.AddSingleton<VoiceInput>();
-
-                    // Wake Word Listener
-                    services.AddSingleton<WakeWordListener>();
-
-                    // Light Service
-                    services.AddSingleton<ILightsService, MqttLightsService>();
-                   
-
-                    // Ring Camera and Snapshots
-                    services.AddSingleton<ICameraService, RingCameraService>();
-                    services.AddSingleton<IRingMotionService, RingMotionService>();
-
-                    // Thermostat via MQTT
-                    services.AddSingleton<IThermostatService, MqttThermostatService>();
-
-                    // MQTT client factory / connection
-                    services.AddSingleton<IMqttClient>(sp => {
-                        var factory = new MqttClientFactory();
-                        var client = factory.CreateMqttClient();
-                        // configure client options here or via IOptions<MqttSettings>
-                        return client;
-                    });
-
-                    builder.Services.AddSingleton<KoenZomers.Ring.Api.Session>(sp =>
-                    {
-                        var logger = sp.GetRequiredService<ILogger<KoenZomers.Ring.Api.Session>>();
-
-                        // Create and immediately log in synchronously:
-                        var session = new KoenZomers.Ring.Api.Session(ringEmail, ringPassword, logger);
-                        session.LoginAsync().GetAwaiter().GetResult();
-
-                        return session;
-                    });
-
-                    // hosted orchestrator
-                    services.AddHostedService<JarvisHostedService>();
-                })
-                .ConfigureLogging(logging =>
-                {
-                    logging.ClearProviders();
-                    logging.AddConsole();
-                })
-                .UseWindowsService()
+            var factory = new MqttClientFactory();
+            var client = factory.CreateMqttClient();
+            var mqttConfig = configuration.GetSection("SmartHome:Mqtt");
+            var broker = mqttConfig["Broker"];
+            var port = int.Parse(mqttConfig["Port"] ?? "1883");
+            var options = new MqttClientOptionsBuilder()
+                .WithTcpServer(broker, port)
+                .WithCredentials(mqttConfig["Username"], mqttConfig["Password"])
                 .Build();
+            try
+            {
+                client.ConnectAsync(options).GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                var logger = sp.GetRequiredService<ILogger<Program>>();
+                logger.LogError(ex, "Failed to connect to MQTT broker {Broker}:{Port}", broker, port);
+                throw;
+            }
+            return client;
+        });
 
-            await host.RunAsync();
-        }
-    }
-}
+        // Ring session
+        services.AddSingleton<Session>(sp =>
+        {
+            var cfg = sp.GetRequiredService<IConfiguration>();
+            var ringEmail = cfg["Ring:Email"];
+            var ringPassword = cfg["Ring:Password"];
+            if (string.IsNullOrWhiteSpace(ringEmail) || string.IsNullOrWhiteSpace(ringPassword))
+            {
+                throw new InvalidOperationException(
+                    "Ring credentials are not configured. " +
+                    "Please set Ring:Email and Ring:Password in appsettings.json or environment variables.");
+            }
+            var session = new Session(ringEmail, ringPassword);
+            session.Authenticate();
+            return session;
+        });
+
+        // HttpClient for Ring VOD
+        services.AddHttpClient("RingClient", client =>
+        {
+            client.BaseAddress = new Uri("https://api.ring.com/clients_api/");
+        });
+
+        // Core JARVIS modules
+        services.AddHttpClient<OpenAIClient>();
+        services.AddSingleton<ConversationEngine>();
+        services.AddSingleton<PersonalityEngine>();
+        services.AddSingleton<AudioController>();
+        services.AddSingleton<WebSocketServer>();
+        services.AddSingleton<CommandRouter>();
+        services.AddSingleton<VoiceInput>();
+        services.AddSingleton<WakeWordListener>();
+
+        // Device services
+        services.AddSingleton<ILightsService, MqttLightsService>();
+        services.AddSingleton<IThermostatService, MqttThermostatService>();
+        services.AddSingleton<ICameraService, RingCameraService>();
+        services.AddSingleton<IRingMotionService, RingMotionService>();
+
+        services.AddHostedService<JarvisHostedService>();
+    })
+    .ConfigureLogging(logging =>
+    {
+        logging.ClearProviders();
+        logging.AddConsole();
+    })
+    .UseWindowsService()
+    .Build();
+
+await host.RunAsync();
