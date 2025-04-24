@@ -1,67 +1,56 @@
 using System;
 using System.IO;
-using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using JARVIS.Modules;
-using JARVIS.Modules.Devices;
-using JARVIS.Modules.Devices.Interfaces;
 
 namespace JARVIS.Service
 {
-    internal class Program
+    public class Program
     {
         public static async Task Main(string[] args)
         {
             var host = Host.CreateDefaultBuilder(args)
-                .ConfigureAppConfiguration((hostingContext, config) =>
+                .ConfigureAppConfiguration(cfg =>
                 {
-                    config.SetBasePath(Directory.GetCurrentDirectory());
-                    config.AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
-                    config.AddEnvironmentVariables();
+                    cfg.SetBasePath(Directory.GetCurrentDirectory())
+                       .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                       .AddEnvironmentVariables();
                 })
                 .ConfigureServices((context, services) =>
                 {
-                    // Register configuration options
+                    // configuration binding
                     services.Configure<OpenAIOptions>(context.Configuration.GetSection("OpenAI"));
-                    services.Configure<AzureSpeechOptions>(context.Configuration.GetSection("AzureSpeech"));
+                   // Configuration for Azure Speech to be added later to save on cost
+                    //services.Configure<AzureSpeechOptions>(context.Configuration.GetSection("AzureSpeech"));
+                   // services.Configure<SmartHomeOptions>(context.Configuration.GetSection("SmartHome"));
 
+                    // register core services (instance-based modules)
                     services.AddHttpClient<OpenAIClient>();
-
-                    // Register application services
+                   // services.AddSingleton<VoiceOutput>();
                     services.AddSingleton<ConversationEngine>();
-                    services.AddSingleton<OpenAIClient>();
                     services.AddSingleton<PersonalityEngine>();
                     services.AddSingleton<AudioController>();
                     services.AddSingleton<WebSocketServer>();
                     services.AddSingleton<CommandRouter>();
-                    services.AddSingleton<JARVISService>();
                     services.AddSingleton<VoiceInput>();
                     services.AddSingleton<WakeWordListener>();
-                    services.AddSingleton<ILightsService, MqttLightsService>();
-                    services.AddSingleton<ICameraService, RingCameraService>();
-                    services.AddSingleton<IThermostatService, MqttThermostatService>();
-                    services.AddSingleton<Modules.Devices.IRingMotionService, RingMotionService>();
 
-
-                    // Register hosted service for startup/shutdown orchestration
+                    // hosted orchestrator
                     services.AddHostedService<JarvisHostedService>();
                 })
                 .ConfigureLogging(logging =>
                 {
                     logging.ClearProviders();
                     logging.AddConsole();
-                    logging.AddDebug();
                 })
-                // Optionally enable running as Windows Service
                 .UseWindowsService()
                 .Build();
 
             await host.RunAsync();
         }
     }
-
 }

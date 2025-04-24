@@ -6,58 +6,52 @@ using JARVIS.Modules;
 
 namespace JARVIS.Service
 {
-    /// <summary>
-    /// Hosted service that initializes and tears down J.A.R.V.I.S. core modules.
-    /// </summary>
     public class JarvisHostedService : IHostedService
     {
         private readonly ILogger<JarvisHostedService> _logger;
-        private readonly JARVISService _jarvisService;
+        private readonly WebSocketServer _ws;
         private readonly VoiceInput _voiceInput;
-        private readonly WakeWordListener _wakeWordListener;
+        private readonly WakeWordListener _wakeListener;
+        private readonly CommandRouter _router;
+        private readonly ConversationEngine _conversationEngine;
 
         public JarvisHostedService(
             ILogger<JarvisHostedService> logger,
-            JARVISService jarvisService,
+            WebSocketServer ws,
             VoiceInput voiceInput,
-            WakeWordListener wakeWordListener)
+            WakeWordListener wakeListener,
+            CommandRouter router,
+            ConversationEngine conversationEngine)
         {
             _logger = logger;
-            _jarvisService = jarvisService;
+            _ws = ws;
             _voiceInput = voiceInput;
-            _wakeWordListener = wakeWordListener;
+            _wakeListener = wakeListener;
+            _router = router;
+            _conversationEngine = conversationEngine;
         }
 
-        /// <summary>
-        /// Called when the host is ready to start the service.
-        /// </summary>
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("J.A.R.V.I.S. Hosted Service is starting.");
+            _logger.LogInformation("Starting J.A.R.V.I.S. Service…");
 
-            // Start all core modules
-            _jarvisService.Start();
-
-            // then begin listening for voice commands
+            _ws.Start();
+           // _wakeListener.StartListening();
             _voiceInput.StartListening();
-
-            _wakeWordListener.Listen();
+            // The wake listener will route commands into CommandRouter
+           // _conversationEngine.Initialize();
 
             return Task.CompletedTask;
         }
 
-        /// <summary>
-        /// Called when the host is performing a graceful shutdown.
-        /// </summary>
         public Task StopAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("J.A.R.V.I.S. Hosted Service is stopping.");
+            _logger.LogInformation("Stopping J.A.R.V.I.S. Service…");
 
-            // Stop all core modules
-            _jarvisService.Stop();
             _voiceInput.StopListening();
+           // _wakeListener.StopListening();
+            _ws.Stop();
 
-            
             return Task.CompletedTask;
         }
     }
