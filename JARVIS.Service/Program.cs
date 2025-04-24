@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,7 +10,7 @@ using JARVIS.Modules;
 
 namespace JARVIS.Service
 {
-    public class Program
+    internal class Program
     {
         public static async Task Main(string[] args)
         {
@@ -17,31 +18,44 @@ namespace JARVIS.Service
                 .ConfigureAppConfiguration((hostingContext, config) =>
                 {
                     config.SetBasePath(Directory.GetCurrentDirectory());
-                    config.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+                    config.AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
                     config.AddEnvironmentVariables();
                 })
                 .ConfigureServices((context, services) =>
                 {
-                    // bind configuration sections to options
+                    // Register configuration options
                     services.Configure<OpenAIOptions>(context.Configuration.GetSection("OpenAI"));
-                    services.AddHostedService<JarvisHostedService>();
+                    services.Configure<AzureSpeechOptions>(context.Configuration.GetSection("AzureSpeech"));
 
-                    // services.Configure<AzureSpeechOptions>(context.Configuration.GetSection("AzureSpeech"));
+                    services.AddHttpClient<OpenAIClient>();
+
+                    // Register application services
+                    services.AddSingleton<ConversationEngine>();
+                    services.AddSingleton<OpenAIClient>();
+                    services.AddSingleton<PersonalityEngine>();
+                    services.AddSingleton<AudioController>();
+                    services.AddSingleton<WebSocketServer>();
+                    services.AddSingleton<CommandRouter>();
+                    services.AddSingleton<JARVISService>();
+                    services.AddSingleton<VoiceInput>();
+                    services.AddSingleton<WakeWordListener>();
 
 
-                    // hosted service to orchestrate startup/shutdown
+                    // Register hosted service for startup/shutdown orchestration
                     services.AddHostedService<JarvisHostedService>();
                 })
-                .ConfigureLogging((hostingContext, logging) =>
+                .ConfigureLogging(logging =>
                 {
                     logging.ClearProviders();
                     logging.AddConsole();
                     logging.AddDebug();
                 })
+                // Optionally enable running as Windows Service
                 .UseWindowsService()
                 .Build();
 
             await host.RunAsync();
         }
     }
+
 }
