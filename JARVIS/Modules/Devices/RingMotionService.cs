@@ -54,5 +54,24 @@ namespace JARVIS.Modules.Devices
         {
             throw new NotImplementedException();
         }
+
+        public class NoOpMotionService : IRingMotionService
+        {
+            public Task<bool> IsMotionDetectedAsync(string cameraId)
+            {
+                throw new NotImplementedException();
+            }
+
+            public Task StartMonitoringAsync(string cameraId, Action<object> callback) =>
+                Task.CompletedTask;
+
+            public Task StartMonitoringAsync(string cameraId)
+            {
+                throw new NotImplementedException();
+            }
+
+            public Task StopMonitoringAsync(string cameraId) =>
+                Task.CompletedTask;
+        }
     }
 }

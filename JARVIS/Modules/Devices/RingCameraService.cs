@@ -28,8 +28,8 @@ namespace JARVIS.Modules.Devices
             ILogger<RingCameraService> logger,
             IHttpClientFactory httpFactory)
         {
-            _session = session ?? throw new ArgumentNullException(nameof(session));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _session     = session  ?? throw new ArgumentNullException(nameof(session));
+            _logger      = logger   ?? throw new ArgumentNullException(nameof(logger));
             _httpFactory = httpFactory ?? throw new ArgumentNullException(nameof(httpFactory));
 
             // initial authentication
@@ -140,5 +140,15 @@ namespace JARVIS.Modules.Devices
             [JsonPropertyName("url")]
             public string Url { get; set; }
         }
+
+        public class NoOpCameraService : ICameraService
+        {
+            public Task<string> TakeSnapshotAsync(string cameraId) =>
+                Task.FromResult<string>(null);
+            public Task<string> GetLiveStreamUrlAsync(string cameraId) =>
+                Task.FromResult<string>(null);
+        }
+
+
     }
 }

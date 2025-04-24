@@ -1,15 +1,19 @@
 using System;
-using System.Threading.Tasks;
 using System.IO;
+using System.Threading.Tasks;
+using System.Net.Http.Headers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using MQTTnet;
 using KoenZomers.Ring.Api;
+using KoenZomers.Ring.Api.Exceptions;
 using JARVIS.Modules;
 using JARVIS.Modules.Devices;
 using JARVIS.Modules.Devices.Interfaces;
+using static JARVIS.Modules.Devices.RingMotionService;
+using static JARVIS.Modules.Devices.RingCameraService;
 
 namespace JARVIS.Service
 {
@@ -26,6 +30,8 @@ namespace JARVIS.Service
                 })
                 .ConfigureServices((ctx, services) =>
                 {
+                    var config = ctx.Configuration;
+
                     // Core JARVIS modules
                     services.AddSingleton<ConversationEngine>();
                     services.AddSingleton<PersonalityEngine>();
@@ -38,43 +44,74 @@ namespace JARVIS.Service
                     // MQTT client
                     services.AddSingleton<IMqttClient>(sp =>
                     {
-                        var config = sp.GetRequiredService<IConfiguration>();
+                        var cfg = sp.GetRequiredService<IConfiguration>();
                         var factory = new MqttClientFactory();
                         var client = factory.CreateMqttClient();
-                        var opts = new MqttClientOptionsBuilder()
-                            .WithTcpServer(config["SmartHome:Mqtt:Broker"], int.Parse(config["SmartHome:Mqtt:Port"]))
-                            .WithCredentials(config["SmartHome:Mqtt:Username"], config["SmartHome:Mqtt:Password"])
+                        var options = new MqttClientOptionsBuilder()
+                            .WithTcpServer(
+                                cfg["SmartHome:Mqtt:Broker"],
+                                int.Parse(cfg["SmartHome:Mqtt:Port"] ?? "1883"))
+                            .WithCredentials(
+                                cfg["SmartHome:Mqtt:Username"],
+                                cfg["SmartHome:Mqtt:Password"])
                             .WithCleanSession()
                             .Build();
-                        client.ConnectAsync(opts).GetAwaiter().GetResult();
+                        client.ConnectAsync(options).GetAwaiter().GetResult();
                         return client;
                     });
 
-                    // Ring API Session
-                    services.AddSingleton<Session>(sp =>
+                    // Ring integration toggle
+                    var ringEnabled = config.GetValue<bool>("Ring:Enabled");
+                    if (ringEnabled)
                     {
-                        var config = sp.GetRequiredService<IConfiguration>();
-                        var email = config["Ring:Email"];
-                        var password = config["Ring:Password"];
-                        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
-                            throw new InvalidOperationException(
-                                "Ring credentials are not configured. Please set Ring:Email and Ring:Password.");
-                        var session = new Session(email, password);
-                        session.Authenticate();
-                        return session;
-                    });
+                        // Authenticate Ring Session
+                        services.AddSingleton<Session>(sp =>
+                        {
+                            var cfg = sp.GetRequiredService<IConfiguration>();
+                            var logger = sp.GetRequiredService<ILogger<Session>>();
+                            var email = cfg["Ring:Email"];
+                            var password = cfg["Ring:Password"];
+                            var twoFactor = cfg["Ring:TwoFactorCode"];
+                            if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
+                                throw new InvalidOperationException("Ring:Email and Ring:Password must be set.");
+                            var session = new Session(email, password);
+                            try
+                            {
+                                session.Authenticate();
+                                logger.LogInformation("Ring session authenticated without 2FA.");
+                            }
+                            catch (TwoFactorAuthenticationRequiredException)
+                            {
+                                if (string.IsNullOrWhiteSpace(twoFactor))
+                                    throw new InvalidOperationException("TwoFactorCode is required for Ring 2FA.");
+                                session.Authenticate(twoFactor);
+                                logger.LogInformation("Ring session authenticated with 2FA.");
+                            }
+                            return session;
+                        });
 
-                    // HttpClient for Ring VOD
-                    services.AddHttpClient("RingClient", c =>
+                        // HttpClient for Ring VOD
+                        services.AddHttpClient("RingClient", c =>
+                        {
+                            c.BaseAddress = new Uri("https://api.ring.com/clients_api/");
+                            c.DefaultRequestHeaders.Accept.Add(
+                                new MediaTypeWithQualityHeaderValue("application/json"));
+                        });
+
+                        // Real services
+                        services.AddSingleton<ICameraService, RingCameraService>();
+                        services.AddSingleton<IRingMotionService, RingMotionService>();
+                    }
+                    else
                     {
-                        c.BaseAddress = new Uri("https://api.ring.com/clients_api/");
-                    });
+                        // No-op services
+                        services.AddSingleton<ICameraService, NoOpCameraService>();
+                        services.AddSingleton<IRingMotionService, NoOpMotionService>();
+                    }
 
-                    // Device services
+                    // Other device services
                     services.AddSingleton<ILightsService, MqttLightsService>();
                     services.AddSingleton<IThermostatService, MqttThermostatService>();
-                    services.AddSingleton<ICameraService, RingCameraService>();
-                    services.AddSingleton<IRingMotionService, RingMotionService>();
 
                     // Hosted orchestrator
                     services.AddHostedService<JarvisHostedService>();
@@ -84,6 +121,7 @@ namespace JARVIS.Service
                     logging.ClearProviders();
                     logging.AddConsole();
                 })
+                .UseConsoleLifetime()
                 .UseWindowsService()
                 .Build();
 
