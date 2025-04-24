@@ -44,6 +44,7 @@ namespace JARVIS.Service
                     services.AddSingleton<ILightsService, MqttLightsService>();
                     services.AddSingleton<ICameraService, RingCameraService>();
                     services.AddSingleton<IThermostatService, MqttThermostatService>();
+                    services.AddSingleton<Modules.Devices.IRingMotionService, RingMotionService>();
 
 
                     // Register hosted service for startup/shutdown orchestration

@@ -10,7 +10,7 @@ namespace JARVIS.Modules.Devices
     /// <summary>
     /// Interface for Ring doorbell motion detection.
     /// </summary>
-    public interface IMotionService
+    public interface IRingMotionService
     {
         /// <summary>
         /// Checks if the specified doorbell detected motion in its most recent event.
@@ -21,7 +21,7 @@ namespace JARVIS.Modules.Devices
     /// <summary>
     /// Ring-based implementation of IMotionService using KoenZomers.Ring.Api.
     /// </summary>
-    public class RingMotionService : IMotionService
+    public class RingMotionService : IRingMotionService
     {
         private readonly Session _ringSession;
         private readonly ILogger<RingMotionService> _logger;
@@ -44,19 +44,24 @@ namespace JARVIS.Modules.Devices
         /// <inheritdoc />
         public async Task<bool> IsMotionDetectedAsync(string doorbotId)
         {
-            // Retrieve the most recent history event for this doorbell
-            var history = await _ringSession.GetDoorbotsHistory(1, doorbotId);
-            if (!history.Any())
+            // Retrieve all history events
+            var history = await _ringSession.GetDoorbotsHistory();
+            // Filter for the specified doorbot and get the latest event
+            var latestEvent = history
+                .Where(e => e.Doorbot != null && e.Doorbot.Id.ToString() == doorbotId)
+                .OrderByDescending(e => e.CreatedAtDateTime)
+                .FirstOrDefault();
+
+            if (latestEvent == null)
             {
                 _logger.LogWarning("No history events for doorbot {DoorbotId}", doorbotId);
                 return false;
             }
 
-            var latest = history.First();
-            bool isMotion = string.Equals(latest.Kind, "motion", StringComparison.OrdinalIgnoreCase);
+            bool isMotion = string.Equals(latestEvent.Kind, "motion", StringComparison.OrdinalIgnoreCase);
             _logger.LogInformation(
                 "Doorbot {DoorbotId} latest event: {Kind}, motion={IsMotion}",
-                doorbotId, latest.Kind, isMotion);
+                doorbotId, latestEvent.Kind, isMotion);
 
             return isMotion;
         }
