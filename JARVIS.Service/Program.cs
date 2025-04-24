@@ -6,6 +6,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using JARVIS.Modules;
+using JARVIS.Modules.Devices.Interfaces;
+using JARVIS.Modules.Devices;
 
 namespace JARVIS.Service
 {
@@ -38,6 +40,11 @@ namespace JARVIS.Service
                     services.AddSingleton<CommandRouter>();
                     services.AddSingleton<VoiceInput>();
                     services.AddSingleton<WakeWordListener>();
+                    services.AddSingleton<ICameraService, RingCameraService>();
+                    services.AddSingleton<ILightsService, MqttLightsService>();
+                    services.AddSingleton<IThermostatService, MqttThermostatService>();
+                    services.AddSingleton<ICameraService, RingCameraService>();
+                    services.AddSingleton<Modules.Devices.IRingMotionService, RingMotionService>();
 
                     // hosted orchestrator
                     services.AddHostedService<JarvisHostedService>();

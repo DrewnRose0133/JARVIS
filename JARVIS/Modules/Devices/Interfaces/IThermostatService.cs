@@ -4,12 +4,7 @@ namespace JARVIS.Modules.Devices.Interfaces
 {
     public interface IThermostatService
     {
-        Task SetThermostatAsync(string thermostatId, int temp);
-
-        Task RaiseThermostatAsync(string thermostatId, int degree);
-
-        Task LowerThermostatAsync(string thermostatId, int degree);
-
-        Task GetThermostatTempAsync(string thermostatId);
+        Task SetTemperatureAsync(string zoneId, double temp);
+        Task<double?> GetCurrentTemperatureAsync(string zoneId);
     }
 }

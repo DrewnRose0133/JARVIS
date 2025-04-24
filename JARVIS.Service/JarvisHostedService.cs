@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using JARVIS.Modules;
+using JARVIS.Modules.Devices.Interfaces;
 
 namespace JARVIS.Service
 {
@@ -15,8 +16,12 @@ namespace JARVIS.Service
         private readonly CommandRouter _router;
         private readonly ConversationEngine _conversationEngine;
 
+        private readonly ICameraService _cameraService;
+      
+
         public JarvisHostedService(
             ILogger<JarvisHostedService> logger,
+            ICameraService cameraService,
             WebSocketServer ws,
             VoiceInput voiceInput,
             WakeWordListener wakeListener,
@@ -24,6 +29,7 @@ namespace JARVIS.Service
             ConversationEngine conversationEngine)
         {
             _logger = logger;
+            _cameraService = cameraService;
             _ws = ws;
             _voiceInput = voiceInput;
             _wakeListener = wakeListener;
@@ -31,17 +37,33 @@ namespace JARVIS.Service
             _conversationEngine = conversationEngine;
         }
 
-        public Task StartAsync(CancellationToken cancellationToken)
+        public async Task StartAsync(CancellationToken cancellationToken)
         {
             _logger.LogInformation("Starting J.A.R.V.I.S. Service…");
 
             _ws.Start();
-           // _wakeListener.StartListening();
+
+            // Get a list of devices, then find the ID you want to pass in below
+            // var id = _ringSession.GetRingDevices();
+
+            var frontDoorId = "123456789";
+            var vodUrl = await _cameraService.GetLiveStreamUrlAsync(frontDoorId);
+            // _wakeListener.StartListening();
             _voiceInput.StartListening();
             // The wake listener will route commands into CommandRouter
-           // _conversationEngine.Initialize();
+            // _conversationEngine.Initialize();
 
-            return Task.CompletedTask;
+            await VoiceOutput.SpeakAsync("Streaming your front door now.");
+
+            // broadcast to all Visualizers
+            await _ws.BroadcastAsync(new
+            {
+                type = "cameraStream",
+                cameraId = frontDoorId,
+                url = vodUrl
+            });
+
+            //return Task;
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
