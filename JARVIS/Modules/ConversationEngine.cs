@@ -1,13 +1,12 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Timers;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Configuration;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace JARVIS.Modules
 {
@@ -16,20 +15,21 @@ namespace JARVIS.Modules
         private readonly ILogger<ConversationEngine> _logger;
         private readonly IConfiguration _configuration;
         private readonly HttpClient _localAiClient;
-        private readonly Dictionary<string, Timer> _reminders = new();
         private readonly List<Dictionary<string, string>> _conversationHistory = new();
 
-        public ConversationEngine(
-            ILogger<ConversationEngine> logger,
-            IConfiguration configuration)
+        private readonly string _modelName;
+
+        public ConversationEngine(ILogger<ConversationEngine> logger, IConfiguration configuration)
         {
             _logger = logger;
             _configuration = configuration;
 
-            // --- LocalAI HTTP client setup ---
+            _modelName = _configuration["OpenAI:Model"] ?? "hermes";
+
             _localAiClient = new HttpClient
             {
-                BaseAddress = new Uri("http://localhost:8080/v1/")
+                BaseAddress = new Uri(_configuration["OpenAI:ApiUrl"] ?? "http://localhost:8080/v1/"),
+                Timeout = TimeSpan.FromMinutes(5)
             };
             _localAiClient.DefaultRequestHeaders.Accept.Add(
                 new MediaTypeWithQualityHeaderValue("application/json"));
@@ -39,30 +39,22 @@ namespace JARVIS.Modules
 
         public void Initialize()
         {
-            _logger.LogInformation("Initializing ConversationEngine (LocalAI)�");
+            _logger.LogInformation("🧠 Initializing ConversationEngine for model '{0}'…", _modelName);
 
             _conversationHistory.Clear();
             _conversationHistory.Add(new Dictionary<string, string>
             {
                 ["role"] = "system",
-                ["content"] = "You are JARVIS, a helpful, sarcastic, intelligent AI with a British accent. You help with smart home tasks, reminders, and can hold witty conversations."
+                ["content"] = "You are JARVIS, a witty, helpful home automation AI with a dry sense of humor. Speak like a British assistant."
             });
-
-            _logger.LogInformation("ConversationEngine is ready.");
         }
 
-        /// <summary>
-        /// Processes a single user utterance: commands first, then local-AI chat if no command matched.
-        /// </summary>
         public async Task<string> ProcessInputAsync(string input)
         {
-            _logger.LogInformation("Processing input: {Input}", input);
+            await WaitForLocalAIReadyAsync(_modelName);
 
-            // 1) Domain commands
-            if (TryHandleCommand(input.ToLower()))
-                return string.Empty;
+            _logger.LogInformation("🎙️ User said: {Input}", input);
 
-            // 2) Add to history and call LocalAI
             _conversationHistory.Add(new Dictionary<string, string>
             {
                 ["role"] = "user",
@@ -71,42 +63,60 @@ namespace JARVIS.Modules
 
             var payload = new
             {
-                model = _configuration["OpenAI:Model"] ?? "gpt-3.5-turbo",
+                model = _modelName,
                 messages = _conversationHistory
             };
 
             var json = JsonSerializer.Serialize(payload);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            _logger.LogInformation("Sending request to LocalAI: {Url}",
-                _localAiClient.BaseAddress + "chat/completions");
-
             HttpResponseMessage response;
             try
             {
+                _logger.LogInformation("📤 Sending chat request to LocalAI: {0}", json);
+
                 response = await _localAiClient.PostAsync("chat/completions", content);
+
+                var rawResponse = await response.Content.ReadAsStringAsync();
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogError("❌ LocalAI returned error {0}: {1}", response.StatusCode, rawResponse);
+                    return $"Sorry, LocalAI returned error {response.StatusCode}.";
+                }
+
+                var parsedResponse = JsonDocument.Parse(rawResponse);
+
+                var extractedReply = parsedResponse.RootElement
+                               .GetProperty("choices")[0]
+                               .GetProperty("message")
+                               .GetProperty("content")
+                               .GetString();
+
+                _conversationHistory.Add(new Dictionary<string, string>
+                {
+                    ["role"] = "assistant",
+                    ["content"] = extractedReply
+                });
+
+                Respond(extractedReply);
+                return extractedReply;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error connecting to LocalAI.");
-                return "Sorry, I couldn�t reach the local AI engine.";
+                _logger.LogError(ex, "🔥 Exception while connecting to LocalAI.");
+                return "Sorry, I couldn't connect to my AI core.";
             }
 
-            if (!response.IsSuccessStatusCode)
-            {
-                _logger.LogError("LocalAI returned {StatusCode}", response.StatusCode);
-                return $"Local AI error: {response.StatusCode}";
-            }
 
-            var body = await response.Content.ReadAsStringAsync();
-            using var doc = JsonDocument.Parse(body);
+            var responseBody = await response.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(responseBody);
             var reply = doc.RootElement
                            .GetProperty("choices")[0]
                            .GetProperty("message")
                            .GetProperty("content")
                            .GetString();
 
-            // 3) Append assistant reply to history
             _conversationHistory.Add(new Dictionary<string, string>
             {
                 ["role"] = "assistant",
@@ -117,87 +127,46 @@ namespace JARVIS.Modules
             return reply;
         }
 
-        // --- Convenience wrapper for hosting code to call ---
         public Task<string> ProcessTranscriptionAsync(string transcription)
-            => ProcessInputAsync(transcription);
-
-        // --- WakeWord-based console loop (optional) ---
-        public void OnWakeWordDetected()
         {
-            _logger.LogInformation("Wake word detected. Entering local console chat loop...");
-            Console.WriteLine("JARVIS is listening. What can I do for you?");
-
-            Initialize();
-
-            while (true)
-            {
-                Console.Write("You: ");
-                var input = Console.ReadLine();
-                if (string.IsNullOrWhiteSpace(input)) continue;
-                if (input.Equals("exit", StringComparison.OrdinalIgnoreCase))
-                {
-                    Console.WriteLine("JARVIS: Going idle.");
-                    break;
-                }
-                ProcessInputAsync(input).Wait();
-            }
-        }
-
-        // --- Domain command handling (lights, reminders) ---
-        private bool TryHandleCommand(string input)
-        {
-            if (input.Contains("remind") || input.Contains("reminder"))
-            {
-                ParseAndSetReminder(input);
-                return true;
-            }
-            if (input.Contains("turn on the light") || input.Contains("lights on"))
-            {
-                Respond("Lights have been turned on.");
-                return true;
-            }
-            if (input.Contains("turn off the light") || input.Contains("lights off"))
-            {
-                Respond("Lights are now off.");
-                return true;
-            }
-            return false;
-        }
-
-        private void ParseAndSetReminder(string input)
-        {
-            var task = "your task";
-            var minutes = 1;
-            foreach (var word in input.Split(' '))
-            {
-                if (int.TryParse(word, out var m))
-                {
-                    minutes = m;
-                    break;
-                }
-            }
-            SetReminder(task, minutes);
-            Respond($"Setting reminder for '{task}' in {minutes} minutes.");
-        }
-
-        public void SetReminder(string task, int minutes)
-        {
-            var timer = new Timer(minutes * 60 * 1000);
-            timer.Elapsed += async (s, e) =>
-            {
-                await VoiceOutput.SpeakAsync($"Reminder: {task}");
-                timer.Stop();
-            };
-            timer.Start();
-            _reminders[task] = timer;
-            _logger.LogInformation("Reminder set: {Task} in {Minutes}m", task, minutes);
+            return ProcessInputAsync(transcription);
         }
 
         private void Respond(string message)
         {
-            _logger.LogInformation("JARVIS: {Message}", message);
+            _logger.LogInformation("🤖 JARVIS: {Message}", message);
             Console.WriteLine($"JARVIS: {message}");
             VoiceOutput.SpeakAsync(message).Wait();
+        }
+
+        private async Task WaitForLocalAIReadyAsync(string expectedModel, int timeoutSeconds = 120)
+        {
+            var start = DateTime.UtcNow;
+            while ((DateTime.UtcNow - start).TotalSeconds < timeoutSeconds)
+            {
+                try
+                {
+                    var resp = await _localAiClient.GetAsync("models");
+                    resp.EnsureSuccessStatusCode();
+
+                    var content = await resp.Content.ReadAsStringAsync();
+                    if (content.Contains(expectedModel))
+                    {
+                        _logger.LogInformation("✅ LocalAI is ready with model '{0}'", expectedModel);
+                        return;
+                    }
+
+                    _logger.LogInformation("⏳ LocalAI is running, but model '{0}' not yet loaded…", expectedModel);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogInformation("⏳ Waiting for LocalAI: {0}", ex.Message);
+                }
+
+                await Task.Delay(3000);
+            }
+
+            throw new TimeoutException($"LocalAI did not become ready with model '{expectedModel}' after {timeoutSeconds} seconds.");
         }
     }
 }
