@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Speech.Recognition;
 using Microsoft.Extensions.Logging;
 
@@ -40,22 +41,36 @@ namespace JARVIS.Modules
         /// </summary>
         public void StartListening()
         {
-            _recognizer = new SpeechRecognitionEngine();
-            _recognizer.SetInputToDefaultAudioDevice();
+            // 1) Pick an English recognizer explicitly
+            var engines = SpeechRecognitionEngine.InstalledRecognizers();
+            var info = engines
+                .FirstOrDefault(r => r.Culture.Name.Equals("en-US", StringComparison.OrdinalIgnoreCase))
+                ?? engines.FirstOrDefault();
+            if (info == null)
+                throw new InvalidOperationException("No speech engines installed!");
+            _recognizer = new SpeechRecognitionEngine(info);
+
+            // 2) Load dictation grammar
             _recognizer.LoadGrammar(new DictationGrammar());
+
+            // 3) Wire up both success and rejection so you can debug
             _recognizer.SpeechRecognized += (s, e) =>
             {
-                string input = e.Result.Text.ToLower();
-                _logger.LogInformation("Voice recognized: {Input}", input);
-
-                // 1) Existing command routing
-                _router.HandleCommand(input);
-
-                // 2) Notify any subscribers of the new transcription
-                TranscriptionReceived?.Invoke(input);
+                var text = e.Result.Text.ToLower();
+                _logger.LogInformation("Recognized: {Text}", text);
+                _router.HandleCommand(text);
+                TranscriptionReceived?.Invoke(text);
             };
+            _recognizer.SpeechRecognitionRejected += (s, e) =>
+            {
+                _logger.LogWarning("Recognition rejected; audio may have been too quiet or noisy.");
+            };
+
+            // 4) Hook up the mic and start async
+            _recognizer.SetInputToDefaultAudioDevice();
             _recognizer.RecognizeAsync(RecognizeMode.Multiple);
-            _logger.LogInformation("Voice input listening started.");
+
+            _logger.LogInformation("Voice input listening started with engine {0}.", info.Culture.DisplayName);
         }
 
         /// <summary>
