@@ -1,0 +1,4 @@
+services:
+  jarvis.service:
+    environment:
+      - DOTNET_ENVIRONMENT=Development

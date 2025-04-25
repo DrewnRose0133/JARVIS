@@ -14,6 +14,7 @@ using JARVIS.Modules.Devices;
 using JARVIS.Modules.Devices.Interfaces;
 using static JARVIS.Modules.Devices.RingMotionService;
 using static JARVIS.Modules.Devices.RingCameraService;
+using System.Diagnostics;
 
 namespace JARVIS.Service
 {
@@ -21,6 +22,15 @@ namespace JARVIS.Service
     {
         public static async Task Main(string[] args)
         {
+            var psi = new ProcessStartInfo("powershell",
+                 "-NoProfile -ExecutionPolicy Bypass -File run-localai.ps1")
+            {
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false
+            };
+            Process.Start(psi);
+
             var host = Host.CreateDefaultBuilder(args)
                 .ConfigureAppConfiguration((ctx, cfg) =>
                 {

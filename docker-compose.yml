@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  localai:
+    image: ghcr.io/go-skynet/localai:latest
+    volumes:
+      - ./models:/models
+    ports:
+      - "8080:8080"
+    command: ["--model-path","/models/ggml-gpt4all-lora-q4_0.bin"]
+
+  jarvis:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - localai
+    environment:
+      - OPENAI__APIURL=http://localai:8080/v1/
+      - OPENAI__MODEL=gpt4all-lora-q4_0
+    ports:
+      - "5000:5000"
